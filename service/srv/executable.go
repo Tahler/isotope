@@ -10,7 +10,7 @@ import (
 
 	"github.com/Tahler/isotope/convert/pkg/graph/script"
 	"github.com/Tahler/isotope/convert/pkg/graph/svctype"
-	"github.com/Tahler/isotope/service/pkg/srv/prometheus"
+	"github.com/Tahler/isotope/service/srv/prometheus"
 	multierror "github.com/hashicorp/go-multierror"
 	"istio.io/fortio/log"
 )

@@ -7,7 +7,7 @@ import (
 
 	"github.com/Tahler/isotope/convert/pkg/graph/svc"
 	"github.com/Tahler/isotope/convert/pkg/graph/svctype"
-	"github.com/Tahler/isotope/service/pkg/srv/prometheus"
+	"github.com/Tahler/isotope/service/srv/prometheus"
 	"istio.io/fortio/log"
 )
 
