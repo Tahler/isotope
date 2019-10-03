@@ -13,8 +13,7 @@ import (
 
 // HandlerFromServiceGraphYAML makes a handler to emulate the service with name
 // serviceName in the service graph represented by the YAML file at path.
-func HandlerFromServiceGraphYAML(
-	path string, serviceName string) (handler Handler, err error) {
+func HandlerFromServiceGraphYAML(path string, serviceName string) (handler Handler, err error) {
 
 	serviceGraph, err := serviceGraphFromYAMLFile(path)
 	if err != nil {
@@ -48,8 +47,7 @@ func logService(service svc.Service) error {
 }
 
 // serviceGraphFromYAMLFile unmarshals the ServiceGraph from the YAML at path.
-func serviceGraphFromYAMLFile(
-	path string) (serviceGraph graph.ServiceGraph, err error) {
+func serviceGraphFromYAMLFile(path string) (serviceGraph graph.ServiceGraph, err error) {
 	graphYAML, err := ioutil.ReadFile(path)
 	if err != nil {
 		return

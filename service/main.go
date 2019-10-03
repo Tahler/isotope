@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path"
 	"runtime"
 
-	"github.com/Tahler/isotope/convert/pkg/consts"
-	"github.com/Tahler/isotope/service/pkg/srv"
-	"github.com/Tahler/isotope/service/pkg/srv/prometheus"
+	"github.com/Tahler/isotope/service/srv"
+	"github.com/Tahler/isotope/service/srv/prometheus"
+	"google.golang.org/grpc"
 	"istio.io/fortio/log"
 )
 
@@ -21,7 +22,7 @@ const (
 
 var (
 	serviceGraphYAMLFilePath = path.Join(
-		consts.ConfigPath, consts.ServiceGraphYAMLFileName)
+		srv.ConfigPath, srv.ServiceGraphYAMLFileName)
 
 	maxIdleConnectionsPerHostFlag = flag.Int(
 		"max-idle-connections-per-host", 0,
@@ -36,9 +37,25 @@ func main() {
 	setMaxProcs()
 	setMaxIdleConnectionsPerHost(*maxIdleConnectionsPerHostFlag)
 
-	serviceName, ok := os.LookupEnv(consts.ServiceNameEnvKey)
+	// Start GRPC server
+	address := fmt.Sprintf(":%d", srv.ServiceGRPCPort)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	srv.RegisterPingServerServer(s, &srv.Server{})
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	// Start HTTP server
+	serviceName, ok := os.LookupEnv(srv.ServiceNameEnvKey)
 	if !ok {
-		log.Fatalf(`env var "%s" is not set`, consts.ServiceNameEnvKey)
+		log.Fatalf(`env var "%s" is not set`, srv.ServiceNameEnvKey)
 	}
 
 	defaultHandler, err := srv.HandlerFromServiceGraphYAML(
@@ -60,8 +77,8 @@ func serveWithPrometheus(defaultHandler http.Handler) (err error) {
 	log.Infof(`exposing default endpoint "%s"`, defaultEndpoint)
 	http.Handle(defaultEndpoint, defaultHandler)
 
-	addr := fmt.Sprintf(":%d", consts.ServicePort)
-	log.Infof("listening on port %v\n", consts.ServicePort)
+	addr := fmt.Sprintf(":%d", srv.ServiceHTTPPort)
+	log.Infof("listening on port %v\n", srv.ServiceHTTPPort)
 	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		return

@@ -1,0 +1,30 @@
+// Copyright 2015 gRPC authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// regenerate the .pb.go file after any change using
+// protoc ping.proto --go_out=plugins=grpc:.
+syntax = "proto3";
+package srv;
+option go_package = "srv";
+
+message PingMessage {
+  int64 seq      = 1; // sequence number
+  int64 ts       = 2; // src send ts / dest receive ts
+  string payload = 3; // extra packet data
+  int64 delayNanos = 4; // delay the response by x nanoseconds
+}
+
+service PingServer {
+  rpc Ping (PingMessage) returns (PingMessage) {}
+}

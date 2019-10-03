@@ -14,5 +14,5 @@ FROM scratch
 COPY --from=builder \
     /go/src/github.com/Tahler/isotope/service/main /usr/local/bin/service
 
-EXPOSE 8080
+EXPOSE 8080 8081
 ENTRYPOINT ["/usr/local/bin/service"]

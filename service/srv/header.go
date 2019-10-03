@@ -23,8 +23,7 @@ func init() {
 	}
 }
 
-func extractForwardableHeader(
-	header http.Header) http.Header {
+func extractForwardableHeader(header http.Header) http.Header {
 	forwardableHeader := make(http.Header, len(forwardableHeaders))
 	for key := range forwardableHeadersSet {
 		if values, ok := header[key]; ok {
