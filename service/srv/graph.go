@@ -77,8 +77,7 @@ func extractService(
 
 // extractServiceTypes builds a map from service name to its type
 // (i.e. HTTP or gRPC).
-func extractServiceTypes(
-	serviceGraph graph.ServiceGraph) map[string]svctype.ServiceType {
+func extractServiceTypes(serviceGraph graph.ServiceGraph) map[string]svctype.ServiceType {
 	types := make(map[string]svctype.ServiceType, len(serviceGraph.Services))
 	for _, service := range serviceGraph.Services {
 		types[service.Name] = service.Type
