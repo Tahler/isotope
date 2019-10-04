@@ -1,11 +1,11 @@
-FROM golang:1.10.2 AS builder
+FROM golang:1.13.1 AS builder
 
-RUN go get -u github.com/golang/dep/cmd/dep
+ENV GO111MODULE off
 
 WORKDIR /go/src/github.com/Tahler/isotope/service
 
 COPY . .
-RUN dep ensure -vendor-only
+RUN go get -v
 
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -a -installsuffix cgo -o ./main ./main.go
@@ -15,4 +15,4 @@ COPY --from=builder \
     /go/src/github.com/Tahler/isotope/service/main /usr/local/bin/service
 
 EXPOSE 8080 8081
-ENTRYPOINT ["/usr/local/bin/service"]
+CMD [ "/usr/local/bin/service", "--config-file=/etc/config/service-graph.yaml" ]
