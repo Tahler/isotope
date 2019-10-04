@@ -10,10 +10,6 @@ import (
 	"istio.io/fortio/log"
 )
 
-// pathTracesHeaderKey is the HTTP header key for path tracing. It must be in
-// Train-Case.
-const pathTracesHeaderKey = "Path-Traces"
-
 var (
 	forwardableHeaders = []string{
 		"X-Request-Id",
@@ -26,6 +22,12 @@ var (
 	}
 	forwardableHeadersSet = make(map[string]bool, len(forwardableHeaders))
 )
+
+func init() {
+	for _, key := range forwardableHeaders {
+		forwardableHeadersSet[key] = true
+	}
+}
 
 type Handler struct {
 	Service      svc.Service
@@ -42,40 +44,32 @@ func newApiHttp(h Handler) *http.ServeMux {
 func ServiceHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-
 		prometheus.RecordRequestReceived()
-
-		respond := func(status int) {
-			w.WriteHeader(status)
-			err := r.Write(w)
-			if err != nil {
-				log.Errf("%s", err)
-			}
-
-			stopTime := time.Now()
-			duration := stopTime.Sub(startTime)
-			// TODO: Record size of response payload.
-			prometheus.RecordResponseSent(duration, 0, status)
-		}
 
 		for _, step := range h.Service.Script {
 			forwardableHeader := extractForwardableHeader(r.Header)
 			err := execute(step, forwardableHeader, h.ServiceTypes)
 			if err != nil {
 				log.Errf("%s", err)
-				respond(http.StatusInternalServerError)
+				makeHTTPResponse(w, r, http.StatusInternalServerError, startTime)
 				return
 			}
 		}
-
-		respond(http.StatusOK)
+		makeHTTPResponse(w, r, http.StatusOK, startTime)
 	}
 }
 
-func init() {
-	for _, key := range forwardableHeaders {
-		forwardableHeadersSet[key] = true
+func makeHTTPResponse(w http.ResponseWriter, r *http.Request, statusCode int, startTime time.Time) {
+	w.WriteHeader(statusCode)
+	err := r.Write(w)
+	if err != nil {
+		log.Errf("%s", err)
 	}
+
+	stopTime := time.Now()
+	duration := stopTime.Sub(startTime)
+	// TODO: Record size of response payload.
+	prometheus.RecordResponseSent(duration, 0, statusCode)
 }
 
 func extractForwardableHeader(header http.Header) http.Header {

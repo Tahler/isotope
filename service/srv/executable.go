@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,19 +16,14 @@ import (
 	"istio.io/fortio/log"
 )
 
-func execute(
-	step interface{},
-	forwardableHeader http.Header,
-	serviceTypes map[string]svctype.ServiceType) (err error) {
+func execute(step interface{}, forwardableHeader http.Header, serviceTypes map[string]svctype.ServiceType) (err error) {
 	switch cmd := step.(type) {
 	case script.SleepCommand:
 		executeSleepCommand(cmd)
 	case script.RequestCommand:
-		err = executeRequestCommand(
-			cmd, forwardableHeader, serviceTypes)
+		err = executeRequestCommand(cmd, forwardableHeader, serviceTypes)
 	case script.ConcurrentCommand:
-		err = executeConcurrentCommand(
-			cmd, forwardableHeader, serviceTypes)
+		err = executeConcurrentCommand(cmd, forwardableHeader, serviceTypes)
 	default:
 		log.Fatalf("unknown command type in script: %T", cmd)
 	}
@@ -45,12 +41,12 @@ func executeRequestCommand(
 	forwardableHeader http.Header,
 	serviceTypes map[string]svctype.ServiceType) (err error) {
 	destName := cmd.ServiceName
-	destType, ok := serviceTypes[destName]
-	if !ok {
-		err = fmt.Errorf("service %s does not exist", destName)
-		return
-	}
-	response, err := sendRequest(destName, destType, cmd.Size, forwardableHeader)
+	// destType, ok := serviceTypes[destName]
+	// if !ok {
+	// 	err = fmt.Errorf("service %s does not exist", destName)
+	// 	return
+	// }
+	response, err := sendRequest(destName, uint64(cmd.Size), forwardableHeader)
 	if err != nil {
 		return
 	}
@@ -72,16 +68,13 @@ func executeRequestCommand(
 }
 
 func readAllAndClose(r io.ReadCloser) {
-	io.Copy(ioutil.Discard, r)
+	_, _ = io.Copy(ioutil.Discard, r)
 	r.Close()
 }
 
 // executeConcurrentCommand calls each command in exe.Commands asynchronously
 // and waits for each to complete.
-func executeConcurrentCommand(
-	cmd script.ConcurrentCommand,
-	forwardableHeader http.Header,
-	serviceTypes map[string]svctype.ServiceType) (errs error) {
+func executeConcurrentCommand(cmd script.ConcurrentCommand, forwardableHeader http.Header, serviceTypes map[string]svctype.ServiceType) (errs error) {
 	numSubCmds := len(cmd)
 	wg := sync.WaitGroup{}
 	wg.Add(numSubCmds)
@@ -98,3 +91,26 @@ func executeConcurrentCommand(
 	wg.Wait()
 	return
 }
+
+// HTTP
+
+func sendRequest(address string, payloadSize uint64, requestHeader http.Header) (*http.Response, error) {
+	url := fmt.Sprintf("http://%s:%v", address, ServiceHTTPPort)
+
+	// Build request
+	payload := make([]byte, payloadSize)
+	request, err := http.NewRequest("GET", url, bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy header
+	for key, values := range requestHeader {
+		request.Header[key] = values
+	}
+
+	log.Debugf("sending request to %s ", url)
+	return http.DefaultClient.Do(request)
+}
+
+// GPRC ?

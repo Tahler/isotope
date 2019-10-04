@@ -6,16 +6,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"runtime"
 
+	"github.com/Tahler/isotope/convert/pkg/graph"
 	grpc "google.golang.org/grpc"
 	log "istio.io/fortio/log"
-)
-
-const (
-	promEndpoint    = "/metrics"
-	defaultEndpoint = "/"
 )
 
 var (
@@ -29,24 +24,31 @@ var (
 )
 
 type Server struct {
+	name        string
 	http_server *http.Server
 	grpc_server *grpc.Server
 	grpc_port   string
+
+	graph *graph.ServiceGraph
 }
 
-func NewServer() *Server {
+func NewServer(name string) *Server {
+	var err error
+
 	s := &Server{
+		name:        name,
 		http_server: new(http.Server),
 		grpc_server: new(grpc.Server),
 		grpc_port:   fmt.Sprintf(":%d", ServiceGRPCPort),
+		graph:       &graph.ServiceGraph{},
 	}
 
-	serviceName, ok := os.LookupEnv(ServiceNameEnvKey)
-	if !ok {
-		log.Fatalf(`env var "%s" is not set`, ServiceNameEnvKey)
+	s.graph, err = serviceGraphFromYAMLFile(*configFile)
+	if err != nil {
+		return nil
 	}
 
-	defaultHandler, err := HandlerFromServiceGraphYAML(*configFile, serviceName)
+	defaultHandler, err := HandlerFromServiceGraphYAML(s.name, *s.graph)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -60,21 +62,6 @@ func NewServer() *Server {
 	return s
 }
 
-// TO REVIEW
-func setMaxProcs() {
-	numCPU := runtime.NumCPU()
-	maxProcs := runtime.GOMAXPROCS(0)
-	if maxProcs < numCPU {
-		log.Infof("setting GOMAXPROCS to %v (previously %v)", numCPU, maxProcs)
-		runtime.GOMAXPROCS(numCPU)
-	}
-}
-
-// TO REVIEW
-func setMaxIdleConnectionsPerHost(n int) {
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = n
-}
-
 func (s *Server) Start() error {
 
 	// Start GRPC server in a different goroutine.
@@ -85,7 +72,7 @@ func (s *Server) Start() error {
 	}
 
 	s.grpc_server = grpc.NewServer()
-	RegisterPingServerServer(s.grpc_server, &Server{})
+	RegisterPingServerServer(s.grpc_server, s)
 	go func() {
 		if err := s.grpc_server.Serve(lis); err != nil {
 			log.Fatalf("failed to serve GRPC: %v", err)
@@ -117,4 +104,19 @@ func (s *Server) Stop() error {
 
 	log.Infof("Done. Exiting...")
 	return nil
+}
+
+// TO REVIEW
+func setMaxProcs() {
+	numCPU := runtime.NumCPU()
+	maxProcs := runtime.GOMAXPROCS(0)
+	if maxProcs < numCPU {
+		log.Infof("setting GOMAXPROCS to %v (previously %v)", numCPU, maxProcs)
+		runtime.GOMAXPROCS(numCPU)
+	}
+}
+
+// TO REVIEW
+func setMaxIdleConnectionsPerHost(n int) {
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = n
 }
