@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"runtime"
 
 	grpc "google.golang.org/grpc"
@@ -20,12 +19,13 @@ const (
 )
 
 var (
-	serviceGraphYAMLFilePath = path.Join(
-		ConfigPath, ServiceGraphYAMLFileName)
-
 	maxIdleConnectionsPerHostFlag = flag.Int(
 		"max-idle-connections-per-host", 0,
 		"maximum number of connections to keep open per host")
+
+	configFile = flag.String(
+		"config-file", "config/service-graph.yaml",
+		"the full path with file name which contains the configuration file")
 )
 
 type Server struct {
@@ -46,7 +46,7 @@ func NewServer() *Server {
 		log.Fatalf(`env var "%s" is not set`, ServiceNameEnvKey)
 	}
 
-	defaultHandler, err := HandlerFromServiceGraphYAML(serviceGraphYAMLFilePath, serviceName)
+	defaultHandler, err := HandlerFromServiceGraphYAML(*configFile, serviceName)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}

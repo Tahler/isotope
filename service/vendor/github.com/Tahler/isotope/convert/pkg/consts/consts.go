@@ -13,11 +13,6 @@ const (
 	// related components will live in.
 	ServiceGraphNamespace = "service-graph"
 
-	// ConfigPath is the parent directory of all service configuration files.
-	ConfigPath = "/etc/config"
-	// ServiceGraphYAMLFileName is the name of the file which contains the
-	// YAML-unmarshallable ServiceGraph.
-	ServiceGraphYAMLFileName = "service-graph.yaml"
 	// ServiceGraphConfigMapKey is the key of the Kubernetes config map entry
 	// holding the ServiceGraph's YAML to be mounted in
 	// "${ConfigPath}/${ServiceGraphYAMLFileName}".
