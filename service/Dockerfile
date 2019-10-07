@@ -15,4 +15,4 @@ COPY --from=builder \
     /go/src/github.com/Tahler/isotope/service/main /usr/local/bin/service
 
 EXPOSE 8080 8081
-CMD [ "/usr/local/bin/service", "--config-file=/etc/config/service-graph.yaml" ]
+ENTRYPOINT [ "/usr/local/bin/service" ]

@@ -19,7 +19,7 @@ var (
 		"maximum number of connections to keep open per host")
 
 	configFile = flag.String(
-		"config-file", "config/service-graph.yaml",
+		"config-file", "/etc/config/service-graph.yaml",
 		"the full path with file name which contains the configuration file")
 )
 
