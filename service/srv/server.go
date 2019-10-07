@@ -24,28 +24,28 @@ var (
 )
 
 type Server struct {
-	name        string
-	http_server *http.Server
-	grpc_server *grpc.Server
-	grpc_port   string
+	name       string
+	httpServer *http.Server
+	grpcServer *grpc.Server
+	grpcPort   string
 
 	graph *graph.ServiceGraph
 }
 
-func NewServer(name string) *Server {
+func NewServer(name string) (*Server, error) {
 	var err error
 
 	s := &Server{
-		name:        name,
-		http_server: new(http.Server),
-		grpc_server: new(grpc.Server),
-		grpc_port:   fmt.Sprintf(":%d", ServiceGRPCPort),
-		graph:       &graph.ServiceGraph{},
+		name:       name,
+		httpServer: new(http.Server),
+		grpcServer: new(grpc.Server),
+		grpcPort:   fmt.Sprintf("%d", ServiceGRPCPort),
+		graph:      &graph.ServiceGraph{},
 	}
 
 	s.graph, err = serviceGraphFromYAMLFile(*configFile)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	defaultHandler, err := HandlerFromServiceGraphYAML(s.name, *s.graph)
@@ -54,35 +54,36 @@ func NewServer(name string) *Server {
 	}
 
 	mux := newApiHttp(defaultHandler)
-	s.http_server.Addr = fmt.Sprintf(":%d", ServiceHTTPPort)
-	s.http_server.Handler = mux
+	s.httpServer.Addr = fmt.Sprintf(":%d", ServiceHTTPPort)
+	s.httpServer.Handler = mux
 
 	setMaxProcs()
 	setMaxIdleConnectionsPerHost(*maxIdleConnectionsPerHostFlag)
-	return s
+	return s, nil
 }
 
 func (s *Server) Start() error {
 
 	// Start GRPC server in a different goroutine.
-	lis, err := net.Listen("tcp", s.grpc_port)
+	grcpAddress := ":" + s.grpcPort
+	lis, err := net.Listen("tcp", grcpAddress)
 	if err != nil {
 		log.Infof("failed to listen GRPC: %v", err)
 		return err
 	}
 
-	s.grpc_server = grpc.NewServer()
-	RegisterPingServerServer(s.grpc_server, s)
+	s.grpcServer = grpc.NewServer()
+	RegisterPingServerServer(s.grpcServer, s)
 	go func() {
-		if err := s.grpc_server.Serve(lis); err != nil {
+		if err := s.grpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve GRPC: %v", err)
 		}
-		log.Infof("listening GRPC on port %v\n", s.grpc_port)
+		log.Infof("listening GRPC on port %v\n", s.grpcPort)
 	}()
 
 	// Start HTTP server on the main thread.
-	log.Infof("listening HTTP on port %v\n", s.http_server.Addr)
-	err = s.http_server.ListenAndServe()
+	log.Infof("listening HTTP on port %v\n", s.httpServer.Addr)
+	err = s.httpServer.ListenAndServe()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -93,14 +94,14 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	// Stopping HTTP server
 	log.Infof("Stopping HTTP server...")
-	if err := s.http_server.Shutdown(context.Background()); err != nil {
+	if err := s.httpServer.Shutdown(context.Background()); err != nil {
 		log.Infof("Unable to stop HTTP server: %v", err)
 		return err
 	}
 
 	// Stopping GRPC server
 	log.Infof("Stopping GRPC server...")
-	s.grpc_server.GracefulStop()
+	s.grpcServer.GracefulStop()
 
 	log.Infof("Done. Exiting...")
 	return nil

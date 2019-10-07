@@ -32,7 +32,7 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 				go func() {
 					defer wg.Done()
 					// TODO: Include more types of commands: sleep,...
-					s.ping(c.ServiceName)
+					s.ping(c.ServiceName + ":" + s.grpcPort)
 				}()
 			}
 		}

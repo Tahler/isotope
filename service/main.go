@@ -22,10 +22,13 @@ func main() {
 	log.SetLogLevel(log.Info)
 
 	// Start servers.
-	server := srv.NewServer(name)
-	err := server.Start()
+	server, err := srv.NewServer(name)
 	if err != nil {
-		log.Fatalf("Can't start service: %v", err)
+		log.Fatalf("Error creating the service: %v", err)
+	}
+	err = server.Start()
+	if err != nil {
+		log.Fatalf("Error starting the service: %v", err)
 	}
 
 	AwaitTermSignal(server.Stop)

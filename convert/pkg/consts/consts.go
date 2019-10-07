@@ -4,8 +4,11 @@ const (
 	// ServiceContainerName is the name to assign the container when it is run.
 	ServiceContainerName = "mock-service"
 
-	// ServicePort is the port the service will run on.
+	// ServicePort is the HTTP port the service will run on.
 	ServicePort = 8080
+
+	// ServicePort is the GRPC port the service will run on.
+	ServiceGrpcPort = 8081
 
 	// ServiceGraphNamespace is the name of the namespace that all service graph
 	// related components will live in.
