@@ -15,7 +15,7 @@
 // regenerate the .pb.go file after any change using
 // protoc ping.proto --go_out=plugins=grpc:.
 syntax = "proto3";
-package srv;
+package fgrpc;
 option go_package = "srv";
 
 message PingMessage {
