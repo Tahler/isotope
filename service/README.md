@@ -8,7 +8,36 @@ exposes Prometheus metrics.
 
 1. Include the entire topology YAML in `/etc/config/service-graph.yaml`
 1. Set the environment variable, `SERVICE_NAME`, to the name of the service
-   from the topology YAML that this service should emulate
+   from the topology YAML that this service should emulate.
+
+## Run performance tests inside Docker.
+
+### GRPC
+
+```
+$ docker-compose up
+```
+
+This will build and run *service* using config/service-graph.yaml. This also brings up
+Fortio container to test our service. You can access Fortio via http://localhost:8080/fortio.
+
+### HTTP 
+Just change the **type:** to "http" in config/service-graph.yaml and bring up the containers.
+```
+$ docker-compose up
+```
+
+### Stop and clean 
+```
+$ docker-compose down -v
+```
+
+### Rebuild and run
+If you make changes to the source code you will need to rebuild the docker image. Jus use this command:
+```
+$ docker-compose up --build
+```
+
 
 ## Metrics
 
