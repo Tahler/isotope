@@ -3,17 +3,16 @@ services:
 - isEntrypoint: true
   name: tier3
   script:
-  - call:
-      probability: 0
-      service: b
-      size: 0B
+  - - call:
+        probability: 0
+        service: b
+        size: 0B
+    - call:
+        probability: 0
+        service: c
+        size: 0B     
   type: grpc 
 - name: b
-  script:
-  - call:
-      probability: 0
-      service: c
-      size: 0B
   type: grpc
 - name: c
   type: grpc

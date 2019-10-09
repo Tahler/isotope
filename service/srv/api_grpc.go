@@ -2,7 +2,6 @@ package srv
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 // and returns the input ping message as an output.
 // It also records the execution duration.
 func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) {
-	fmt.Println("GRPC request received!!")
+	log.Infof("GRPC request received!!")
 	startTime := time.Now()
 	prometheus.RecordRequestReceived()
 
@@ -26,14 +25,29 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 		// fmt.Println(s.name, service.Name)
 		if service.Name == s.name {
 			for _, cmd := range service.Script {
-				fmt.Printf("SCRIPT %+v", cmd)
-				c := cmd.(script.RequestCommand)
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					// TODO: Include more types of commands: sleep,...
-					s.ping(c.ServiceName + ":" + s.grpcPort)
-				}()
+
+				switch requestType := cmd.(type) {
+				case script.RequestCommand:
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						s.ping(requestType.ServiceName + ":" + s.grpcPort)
+					}()
+
+				case script.ConcurrentCommand:
+					numSubCmds := len(requestType)
+					wg.Add(numSubCmds)
+					for _, subCmd := range requestType {
+						go func(step interface{}) {
+							defer wg.Done()
+							sc := step.(script.RequestCommand)
+							s.ping(sc.ServiceName + ":" + s.grpcPort)
+						}(subCmd)
+					}
+
+				default:
+					log.Fatalf("unknown command type in script: %T", cmd)
+				}
 			}
 		}
 	}

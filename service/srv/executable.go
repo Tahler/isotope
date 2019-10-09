@@ -36,9 +36,7 @@ func executeSleepCommand(cmd script.SleepCommand) {
 
 // Execute sends an HTTP request to another service. Assumes DNS is available
 // which maps exe.ServiceName to the relevant URL to reach the service.
-func executeRequestCommand(
-	cmd script.RequestCommand,
-	forwardableHeader http.Header,
+func executeRequestCommand(cmd script.RequestCommand, forwardableHeader http.Header,
 	serviceTypes map[string]svctype.ServiceType) (err error) {
 	destName := cmd.ServiceName
 	// destType, ok := serviceTypes[destName]
