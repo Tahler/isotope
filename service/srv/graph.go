@@ -8,7 +8,7 @@ import (
 	"github.com/Tahler/isotope/convert/pkg/graph/svc"
 	"github.com/Tahler/isotope/convert/pkg/graph/svctype"
 	"github.com/ghodss/yaml"
-	"istio.io/fortio/log"
+	"github.com/fortio/fortio/log"
 )
 
 // HandlerFromServiceGraphYAML makes a handler to emulate the service with name

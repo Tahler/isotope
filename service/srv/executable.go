@@ -12,7 +12,7 @@ import (
 	"github.com/Tahler/isotope/convert/pkg/graph/script"
 	"github.com/Tahler/isotope/service/srv/prometheus"
 	multierror "github.com/hashicorp/go-multierror"
-	"istio.io/fortio/log"
+	"github.com/fortio/fortio/log"
 )
 
 func execute(step interface{}, forwardableHeader http.Header) (err error) {

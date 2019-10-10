@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/Tahler/isotope/service/srv"
-	"istio.io/fortio/log"
+	"github.com/fortio/fortio/log"
 )
 
 func main() {

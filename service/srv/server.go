@@ -10,7 +10,7 @@ import (
 
 	"github.com/Tahler/isotope/convert/pkg/graph"
 	grpc "google.golang.org/grpc"
-	log "istio.io/fortio/log"
+	log "github.com/fortio/fortio/log"
 )
 
 var (

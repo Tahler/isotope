@@ -7,8 +7,8 @@ import (
 
 	"github.com/Tahler/isotope/convert/pkg/graph/script"
 	"github.com/Tahler/isotope/service/srv/prometheus"
+	"github.com/fortio/fortio/log"
 	grpc "google.golang.org/grpc"
-	"istio.io/fortio/log"
 )
 
 // Ping checks the service graph to call its dependencies, and waits for their responses.
