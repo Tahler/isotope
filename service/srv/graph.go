@@ -42,31 +42,33 @@ func logService(service svc.Service) error {
 }
 
 // serviceGraphFromYAMLFile unmarshals the ServiceGraph from the YAML at path.
-func serviceGraphFromYAMLFile(path string) (serviceGraph *graph.ServiceGraph, err error) {
+func serviceGraphFromYAMLFile(path string) (*graph.ServiceGraph, error) {
+	var serviceGraph *graph.ServiceGraph
+
 	graphYAML, err := ioutil.ReadFile(path)
 	if err != nil {
-		return
+		return nil, err
 	}
 	log.Debugf("unmarshalling\n%s", graphYAML)
 	err = yaml.Unmarshal(graphYAML, &serviceGraph)
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return serviceGraph, nil
 }
 
 // extractService finds the service in serviceGraph with the specified name.
-func extractService(serviceGraph graph.ServiceGraph, name string) (
-	service svc.Service, err error) {
+func extractService(serviceGraph graph.ServiceGraph, name string) (svc.Service, error) {
+	var service svc.Service
+
 	for _, svc := range serviceGraph.Services {
 		if svc.Name == name {
 			service = svc
-			return
+			return service, nil
 		}
 	}
-	err = fmt.Errorf(
-		"service with name %s does not exist in %v", name, serviceGraph)
-	return
+	err := fmt.Errorf("service with name %s does not exist in %v", name, serviceGraph)
+	return svc.Service{}, err
 }
 
 // extractServiceTypes builds a map from service name to its type

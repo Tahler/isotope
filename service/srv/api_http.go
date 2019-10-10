@@ -48,7 +48,7 @@ func ServiceHandler(h Handler) http.HandlerFunc {
 
 		for _, step := range h.Service.Script {
 			forwardableHeader := extractForwardableHeader(r.Header)
-			err := execute(step, forwardableHeader, h.ServiceTypes)
+			err := execute(step, forwardableHeader)
 			if err != nil {
 				log.Errf("%s", err)
 				makeHTTPResponse(w, r, http.StatusInternalServerError, startTime)
@@ -57,6 +57,16 @@ func ServiceHandler(h Handler) http.HandlerFunc {
 		}
 		makeHTTPResponse(w, r, http.StatusOK, startTime)
 	}
+}
+
+func extractForwardableHeader(header http.Header) http.Header {
+	forwardableHeader := make(http.Header, len(forwardableHeaders))
+	for key := range forwardableHeadersSet {
+		if values, ok := header[key]; ok {
+			forwardableHeader[key] = values
+		}
+	}
+	return forwardableHeader
 }
 
 func makeHTTPResponse(w http.ResponseWriter, r *http.Request, statusCode int, startTime time.Time) {
@@ -70,14 +80,4 @@ func makeHTTPResponse(w http.ResponseWriter, r *http.Request, statusCode int, st
 	duration := stopTime.Sub(startTime)
 	// TODO: Record size of response payload.
 	prometheus.RecordResponseSent(duration, 0, statusCode)
-}
-
-func extractForwardableHeader(header http.Header) http.Header {
-	forwardableHeader := make(http.Header, len(forwardableHeaders))
-	for key := range forwardableHeadersSet {
-		if values, ok := header[key]; ok {
-			forwardableHeader[key] = values
-		}
-	}
-	return forwardableHeader
 }

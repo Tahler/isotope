@@ -11,8 +11,7 @@ import (
 	"istio.io/fortio/log"
 )
 
-// Ping checks the service graph to call its dependencies, waits for their responses,
-// and returns the input ping message as an output.
+// Ping checks the service graph to call its dependencies, and waits for their responses.
 // It also records the execution duration.
 func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) {
 	log.Infof("GRPC request received!!")
@@ -22,7 +21,6 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 	var wg sync.WaitGroup
 
 	for _, service := range s.graph.Services {
-		// fmt.Println(s.name, service.Name)
 		if service.Name == s.name {
 			for _, cmd := range service.Script {
 
@@ -45,6 +43,9 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 						}(subCmd)
 					}
 
+				case script.SleepCommand:
+					time.Sleep(time.Duration(requestType))
+
 				default:
 					log.Fatalf("unknown command type in script: %T", cmd)
 				}
@@ -62,6 +63,7 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 }
 
 // ping method starts a grpc client and make ping to the destination address.
+// Ping returns the input ping message as an output, although we don't care about it.
 func (s *Server) ping(address string) {
 
 	log.Infof("Pinging to: %v", address)
