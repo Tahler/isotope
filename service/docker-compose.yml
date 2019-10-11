@@ -1,7 +1,7 @@
 version: '3'
 services:
   tier3:
-    build: .
+    build: ../
     image: build/isotope:0.0.1
     environment:
       - SERVICE_NAME=tier3
