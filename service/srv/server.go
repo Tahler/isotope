@@ -9,8 +9,10 @@ import (
 	"runtime"
 
 	"github.com/Tahler/isotope/convert/pkg/graph"
-	grpc "google.golang.org/grpc"
+	"github.com/Tahler/isotope/convert/pkg/graph/script"
+	"github.com/Tahler/isotope/convert/pkg/graph/svctype"
 	log "github.com/fortio/fortio/log"
+	grpc "google.golang.org/grpc"
 )
 
 var (
@@ -26,8 +28,10 @@ var (
 type Server struct {
 	name       string
 	httpServer *http.Server
-	grpcServer *grpc.Server
-	grpcPort   string
+
+	grpcServer   *grpc.Server
+	grpcPort     string
+	grpcConnPool map[string]*grpc.ClientConn
 
 	graph *graph.ServiceGraph
 }
@@ -36,11 +40,12 @@ func NewServer(name string) (*Server, error) {
 	var err error
 
 	s := &Server{
-		name:       name,
-		httpServer: new(http.Server),
-		grpcServer: new(grpc.Server),
-		grpcPort:   fmt.Sprintf("%d", ServiceGRPCPort),
-		graph:      &graph.ServiceGraph{},
+		name:         name,
+		httpServer:   new(http.Server),
+		grpcServer:   new(grpc.Server),
+		grpcPort:     fmt.Sprintf("%d", ServiceGRPCPort),
+		grpcConnPool: make(map[string]*grpc.ClientConn),
+		graph:        &graph.ServiceGraph{},
 	}
 
 	s.graph, err = serviceGraphFromYAMLFile(*configFile)
@@ -48,6 +53,13 @@ func NewServer(name string) (*Server, error) {
 		return nil, err
 	}
 
+	// Create grpc connection pool to avoid creating connections in every request.
+	err = s.createGrpcConnectionPool()
+	if err != nil {
+		return nil, err
+	}
+
+	// HTTP server initialization.
 	defaultHandler, err := HandlerFromServiceGraphYAML(s.name, *s.graph)
 	if err != nil {
 		log.Fatalf("%s", err)
@@ -120,4 +132,40 @@ func setMaxProcs() {
 // TO REVIEW
 func setMaxIdleConnectionsPerHost(n int) {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = n
+}
+
+func (s *Server) createGrpcConnectionPool() error {
+	service, err := extractService(*s.graph, s.name)
+	if err != nil {
+		return err
+	}
+
+	if service.Type == svctype.ServiceGRPC {
+
+		for _, task := range service.Script {
+			switch cmd := task.(type) {
+			case script.RequestCommand:
+				addr := cmd.ServiceName + ":" + s.grpcPort
+				conn, err := grpc.Dial(addr, grpc.WithInsecure())
+				if err != nil {
+					log.Fatalf("Could not create GRPC connection: %v", err)
+				}
+				s.grpcConnPool[cmd.ServiceName] = conn
+
+			case script.ConcurrentCommand:
+				for _, subcmd := range cmd {
+					sc := subcmd.(script.RequestCommand)
+					addr := sc.ServiceName + ":" + s.grpcPort
+					conn, err := grpc.Dial(addr, grpc.WithInsecure())
+					if err != nil {
+						log.Fatalf("Could not create GRPC connection: %v", err)
+					}
+					s.grpcConnPool[sc.ServiceName] = conn
+				}
+
+			}
+		}
+	}
+
+	return nil
 }

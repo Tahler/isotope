@@ -14,7 +14,7 @@ import (
 // Ping checks the service graph to call its dependencies, and waits for their responses.
 // It also records the execution duration.
 func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) {
-	log.Infof("GRPC request received!!")
+	// log.Infof("GRPC request received!!")
 	startTime := time.Now()
 	prometheus.RecordRequestReceived()
 
@@ -29,7 +29,8 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						s.ping(requestType.ServiceName + ":" + s.grpcPort)
+						// s.ping(requestType.ServiceName + ":" + s.grpcPort)
+						s.ping(s.grpcConnPool[requestType.ServiceName])
 					}()
 
 				case script.ConcurrentCommand:
@@ -39,7 +40,8 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 						go func(step interface{}) {
 							defer wg.Done()
 							sc := step.(script.RequestCommand)
-							s.ping(sc.ServiceName + ":" + s.grpcPort)
+							// s.ping(sc.ServiceName + ":" + s.grpcPort)
+							s.ping(s.grpcConnPool[sc.ServiceName])
 						}(subCmd)
 					}
 
@@ -64,14 +66,8 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 
 // ping method starts a grpc client and make ping to the destination address.
 // Ping returns the input ping message as an output, although we don't care about it.
-func (s *Server) ping(address string) {
-
-	log.Infof("Pinging to: %v", address)
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
+func (s *Server) ping(conn *grpc.ClientConn) {
+	var err error
 	c := NewPingServerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

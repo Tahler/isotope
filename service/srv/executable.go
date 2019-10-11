@@ -11,8 +11,8 @@ import (
 
 	"github.com/Tahler/isotope/convert/pkg/graph/script"
 	"github.com/Tahler/isotope/service/srv/prometheus"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/fortio/fortio/log"
+	multierror "github.com/hashicorp/go-multierror"
 )
 
 func execute(step interface{}, forwardableHeader http.Header) (err error) {
@@ -40,9 +40,9 @@ func executeRequestCommand(cmd script.RequestCommand, forwardableHeader http.Hea
 	}
 
 	prometheus.RecordRequestSent(destination, uint64(cmd.Size))
-	if response.StatusCode == 200 {
-		log.Debugf("%s responded with %s", destination, response.Status)
-	} else {
+	if response.StatusCode != 200 {
+		// 	log.Debugf("%s responded with %s", destination, response.Status)
+		// } else {
 		log.Errf("%s responded with %s", destination, response.Status)
 	}
 	if response.StatusCode == http.StatusInternalServerError {
@@ -91,6 +91,6 @@ func sendRequest(address string, payloadSize uint64, requestHeader http.Header) 
 		request.Header[key] = values
 	}
 
-	log.Debugf("sending request to %s ", url)
+	// log.Debugf("sending request to %s ", url)
 	return http.DefaultClient.Do(request)
 }
