@@ -15,14 +15,14 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 )
 
-func execute(step interface{}, forwardableHeader http.Header) (err error) {
+func (s *Server) execute(step interface{}, forwardableHeader http.Header) (err error) {
 	switch cmd := step.(type) {
 	case script.SleepCommand:
 		time.Sleep(time.Duration(cmd))
 	case script.RequestCommand:
-		err = executeRequestCommand(cmd, forwardableHeader)
+		err = s.executeRequestCommand(cmd, forwardableHeader)
 	case script.ConcurrentCommand:
-		err = executeConcurrentCommand(cmd, forwardableHeader)
+		err = s.executeConcurrentCommand(cmd, forwardableHeader)
 	default:
 		log.Fatalf("unknown command type in script: %T", cmd)
 	}
@@ -31,10 +31,10 @@ func execute(step interface{}, forwardableHeader http.Header) (err error) {
 
 // Execute sends an HTTP request to another service. Assumes DNS is available
 // which maps exe.ServiceName to the relevant URL to reach the service.
-func executeRequestCommand(cmd script.RequestCommand, forwardableHeader http.Header) (err error) {
+func (s *Server) executeRequestCommand(cmd script.RequestCommand, forwardableHeader http.Header) (err error) {
 	destination := cmd.ServiceName
 
-	response, err := sendRequest(destination, uint64(cmd.Size), forwardableHeader)
+	response, err := s.sendRequest(destination, uint64(cmd.Size), forwardableHeader)
 	if err != nil {
 		return
 	}
@@ -59,14 +59,14 @@ func executeRequestCommand(cmd script.RequestCommand, forwardableHeader http.Hea
 
 // executeConcurrentCommand calls each command in exe.Commands asynchronously
 // and waits for each to complete.
-func executeConcurrentCommand(cmd script.ConcurrentCommand, forwardableHeader http.Header) (errs error) {
+func (s *Server) executeConcurrentCommand(cmd script.ConcurrentCommand, forwardableHeader http.Header) (errs error) {
 	numSubCmds := len(cmd)
 	wg := sync.WaitGroup{}
 	wg.Add(numSubCmds)
 	for _, subCmd := range cmd {
 		go func(step interface{}) {
 			defer wg.Done()
-			err := executeRequestCommand(step.(script.RequestCommand), forwardableHeader)
+			err := s.executeRequestCommand(step.(script.RequestCommand), forwardableHeader)
 			if err != nil {
 				errs = multierror.Append(errs, err)
 			}
@@ -76,7 +76,7 @@ func executeConcurrentCommand(cmd script.ConcurrentCommand, forwardableHeader ht
 	return
 }
 
-func sendRequest(address string, payloadSize uint64, requestHeader http.Header) (*http.Response, error) {
+func (s *Server) sendRequest(address string, payloadSize uint64, requestHeader http.Header) (*http.Response, error) {
 	url := fmt.Sprintf("http://%s:%v", address, ServiceHTTPPort)
 
 	// Build request
@@ -92,5 +92,6 @@ func sendRequest(address string, payloadSize uint64, requestHeader http.Header) 
 	}
 
 	// log.Debugf("sending request to %s ", url)
-	return http.DefaultClient.Do(request)
+	// return http.DefaultClient.Do(request)
+	return s.httpConnPool[address].Do(request)
 }

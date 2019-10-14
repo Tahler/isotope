@@ -26,8 +26,9 @@ var (
 )
 
 type Server struct {
-	name       string
-	httpServer *http.Server
+	name         string
+	httpServer   *http.Server
+	httpConnPool map[string]*http.Client
 
 	grpcServer   *grpc.Server
 	grpcPort     string
@@ -42,6 +43,7 @@ func NewServer(name string) (*Server, error) {
 	s := &Server{
 		name:         name,
 		httpServer:   new(http.Server),
+		httpConnPool: make(map[string]*http.Client),
 		grpcServer:   new(grpc.Server),
 		grpcPort:     fmt.Sprintf("%d", ServiceGRPCPort),
 		grpcConnPool: make(map[string]*grpc.ClientConn),
@@ -53,8 +55,8 @@ func NewServer(name string) (*Server, error) {
 		return nil, err
 	}
 
-	// Create grpc connection pool to avoid creating connections in every request.
-	err = s.createGrpcConnectionPool()
+	// Create grpc and http connection pools to avoid creating connections in every request.
+	err = s.createConnectionPools()
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func NewServer(name string) (*Server, error) {
 		log.Fatalf("%s", err)
 	}
 
-	mux := newApiHttp(defaultHandler)
+	mux := s.newApiHttp(defaultHandler)
 	s.httpServer.Addr = fmt.Sprintf(":%d", ServiceHTTPPort)
 	s.httpServer.Handler = mux
 
@@ -134,36 +136,43 @@ func setMaxIdleConnectionsPerHost(n int) {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = n
 }
 
-func (s *Server) createGrpcConnectionPool() error {
+func (s *Server) createConnectionPools() error {
 	service, err := extractService(*s.graph, s.name)
 	if err != nil {
 		return err
 	}
 
-	if service.Type == svctype.ServiceGRPC {
+	for _, task := range service.Script {
+		switch cmd := task.(type) {
+		case script.RequestCommand:
 
-		for _, task := range service.Script {
-			switch cmd := task.(type) {
-			case script.RequestCommand:
+			if service.Type == svctype.ServiceGRPC {
 				addr := cmd.ServiceName + ":" + s.grpcPort
 				conn, err := grpc.Dial(addr, grpc.WithInsecure())
 				if err != nil {
 					log.Fatalf("Could not create GRPC connection: %v", err)
 				}
 				s.grpcConnPool[cmd.ServiceName] = conn
+			} else {
+				s.httpConnPool[cmd.ServiceName] = &http.Client{}
+			}
 
-			case script.ConcurrentCommand:
-				for _, subcmd := range cmd {
-					sc := subcmd.(script.RequestCommand)
+		case script.ConcurrentCommand:
+			for _, subcmd := range cmd {
+				sc := subcmd.(script.RequestCommand)
+
+				if service.Type == svctype.ServiceGRPC {
 					addr := sc.ServiceName + ":" + s.grpcPort
 					conn, err := grpc.Dial(addr, grpc.WithInsecure())
 					if err != nil {
 						log.Fatalf("Could not create GRPC connection: %v", err)
 					}
 					s.grpcConnPool[sc.ServiceName] = conn
+				} else {
+					s.httpConnPool[sc.ServiceName] = &http.Client{}
 				}
-
 			}
+
 		}
 	}
 

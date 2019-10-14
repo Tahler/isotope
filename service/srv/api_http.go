@@ -34,21 +34,21 @@ type Handler struct {
 	ServiceTypes map[string]svctype.ServiceType
 }
 
-func newApiHttp(h Handler) *http.ServeMux {
+func (s *Server) newApiHttp(h Handler) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", ServiceHandler(h))
+	mux.HandleFunc("/", s.ServiceHandler(h))
 	mux.Handle("/metrics", prometheus.Handler())
 	return mux
 }
 
-func ServiceHandler(h Handler) http.HandlerFunc {
+func (s *Server) ServiceHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		prometheus.RecordRequestReceived()
 
 		for _, step := range h.Service.Script {
 			forwardableHeader := extractForwardableHeader(r.Header)
-			err := execute(step, forwardableHeader)
+			err := s.execute(step, forwardableHeader)
 			if err != nil {
 				log.Errf("%s", err)
 				makeHTTPResponse(w, r, http.StatusInternalServerError, startTime)
