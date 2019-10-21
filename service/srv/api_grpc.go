@@ -26,12 +26,7 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 
 				switch requestType := cmd.(type) {
 				case script.RequestCommand:
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
-						// s.ping(requestType.ServiceName + ":" + s.grpcPort)
-						s.ping(s.grpcConnPool[requestType.ServiceName])
-					}()
+					s.ping(s.grpcConnPool[requestType.ServiceName])
 
 				case script.ConcurrentCommand:
 					numSubCmds := len(requestType)

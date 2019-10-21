@@ -10,25 +10,6 @@ import (
 	"github.com/fortio/fortio/log"
 )
 
-var (
-	forwardableHeaders = []string{
-		"X-Request-Id",
-		"X-B3-Traceid",
-		"X-B3-Spanid",
-		"X-B3-Parentspanid",
-		"X-B3-Sampled",
-		"X-B3-Flags",
-		"X-Ot-Span-Context",
-	}
-	forwardableHeadersSet = make(map[string]bool, len(forwardableHeaders))
-)
-
-func init() {
-	for _, key := range forwardableHeaders {
-		forwardableHeadersSet[key] = true
-	}
-}
-
 type Handler struct {
 	Service      svc.Service
 	ServiceTypes map[string]svctype.ServiceType
@@ -47,8 +28,7 @@ func (s *Server) ServiceHandler(h Handler) http.HandlerFunc {
 		prometheus.RecordRequestReceived()
 
 		for _, step := range h.Service.Script {
-			forwardableHeader := extractForwardableHeader(r.Header)
-			err := s.execute(step, forwardableHeader)
+			err := s.execute(step)
 			if err != nil {
 				log.Errf("%s", err)
 				makeHTTPResponse(w, r, http.StatusInternalServerError, startTime)
@@ -57,16 +37,6 @@ func (s *Server) ServiceHandler(h Handler) http.HandlerFunc {
 		}
 		makeHTTPResponse(w, r, http.StatusOK, startTime)
 	}
-}
-
-func extractForwardableHeader(header http.Header) http.Header {
-	forwardableHeader := make(http.Header, len(forwardableHeaders))
-	for key := range forwardableHeadersSet {
-		if values, ok := header[key]; ok {
-			forwardableHeader[key] = values
-		}
-	}
-	return forwardableHeader
 }
 
 func makeHTTPResponse(w http.ResponseWriter, r *http.Request, statusCode int, startTime time.Time) {
