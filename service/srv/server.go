@@ -30,6 +30,7 @@ type Server struct {
 	grpcConnPool map[string]*grpc.ClientConn
 
 	graph *graph.ServiceGraph
+	tasks []*Task
 }
 
 func NewServer(name string) (*Server, error) {
@@ -51,7 +52,7 @@ func NewServer(name string) (*Server, error) {
 	}
 
 	// Create grpc and http connection pools to avoid creating connections in every request.
-	err = s.createConnectionPools()
+	err = s.createTasksAndConnectionPools()
 	if err != nil {
 		return nil, err
 	}
@@ -124,29 +125,36 @@ func setMaxProcs() {
 	}
 }
 
-func (s *Server) createConnectionPools() error {
+func (s *Server) createTasksAndConnectionPools() error {
 	service, err := extractService(*s.graph, s.name)
 	if err != nil {
 		return err
 	}
 
-	for _, task := range service.Script {
-		switch cmd := task.(type) {
+	for _, ta := range service.Script {
+		var t *Task
+		switch cmd := ta.(type) {
 		case script.RequestCommand:
 
+			// Create connection pools.
 			addr := cmd.ServiceName + ":" + s.grpcPort
 			conn, err := grpc.Dial(addr, grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("Could not create GRPC connection: %v", err)
 			}
 			s.grpcConnPool[cmd.ServiceName] = conn
-
 			s.httpConnPool[cmd.ServiceName] = &http.Client{}
+
+			// Create tasks list. Only 1 task here.
+			url := fmt.Sprintf("http://%s:%v", cmd.ServiceName, ServiceHTTPPort)
+			t = newTask(cmd, service.Type, cmd.ServiceName, url, uint64(cmd.Size))
+			s.tasks = append(s.tasks, t)
 
 		case script.ConcurrentCommand:
 			for _, subcmd := range cmd {
 				sc := subcmd.(script.RequestCommand)
 
+				// Create connection pools.
 				addr := sc.ServiceName + ":" + s.grpcPort
 				conn, err := grpc.Dial(addr, grpc.WithInsecure())
 				if err != nil {
@@ -154,9 +162,15 @@ func (s *Server) createConnectionPools() error {
 				}
 				s.grpcConnPool[sc.ServiceName] = conn
 
-				s.httpConnPool[sc.ServiceName] = &http.Client{}
+				// Create tasks list. +1 task.
+				url := fmt.Sprintf("http://%s:%v", sc.ServiceName, ServiceHTTPPort)
+				t = newTask(sc, service.Type, sc.ServiceName, url, uint64(sc.Size))
+				s.tasks = append(s.tasks, t)
 			}
 
+		case script.SleepCommand:
+			t = newTask(cmd, service.Type, "", "", uint64(0))
+			s.tasks = append(s.tasks, t)
 		}
 	}
 

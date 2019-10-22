@@ -27,15 +27,17 @@ func (s *Server) ServiceHandler(h Handler) http.HandlerFunc {
 		startTime := time.Now()
 		prometheus.RecordRequestReceived()
 
-		for _, step := range h.Service.Script {
-			err := s.execute(step)
-			if err != nil {
-				log.Errf("%s", err)
-				makeHTTPResponse(w, r, http.StatusInternalServerError, startTime)
-				return
-			}
+		var statusCode int
+		err := s.executeTasks(s.tasks)
+		if err != nil {
+			log.Errf("%s", err)
+			statusCode = http.StatusInternalServerError
+			makeHTTPResponse(w, r, statusCode, startTime)
+			return
 		}
-		makeHTTPResponse(w, r, http.StatusOK, startTime)
+		statusCode = http.StatusOK
+		makeHTTPResponse(w, r, statusCode, startTime)
+
 	}
 }
 
