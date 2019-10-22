@@ -161,6 +161,7 @@ func (s *Server) createTasksAndConnectionPools() error {
 					log.Fatalf("Could not create GRPC connection: %v", err)
 				}
 				s.grpcConnPool[sc.ServiceName] = conn
+				s.httpConnPool[sc.ServiceName] = &http.Client{}
 
 				// Create tasks list. +1 task.
 				url := fmt.Sprintf("http://%s:%v", sc.ServiceName, ServiceHTTPPort)
@@ -172,6 +173,12 @@ func (s *Server) createTasksAndConnectionPools() error {
 			t = newTask(cmd, service.Type, "", "", uint64(0))
 			s.tasks = append(s.tasks, t)
 		}
+	}
+
+	// Print tasks
+	fmt.Printf("Service %s tasks:\n", s.name)
+	for _, t := range s.tasks {
+		fmt.Printf("%+v\n", t)
 	}
 
 	return nil

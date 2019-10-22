@@ -34,11 +34,13 @@ func newTask(command script.Command, protocol svctype.ServiceType, dest string, 
 	}
 }
 
-func (s *Server) executeTasks(tasks []*Task) (err error) {
+func (s *Server) executeTasks(tasks []*Task) error {
 	var wg sync.WaitGroup
 
-	errc := make(chan error)
-	done := make(chan bool)
+	errc := make(chan error, len(tasks))
+	done := make(chan bool, 1)
+	defer close(errc)
+	defer close(done)
 
 	for _, task := range tasks {
 		switch cmd := task.tType.(type) {
@@ -47,10 +49,13 @@ func (s *Server) executeTasks(tasks []*Task) (err error) {
 
 			go func(task *Task, errc chan error) {
 				defer wg.Done()
-				if task.tType == svctype.ServiceGRPC {
+				var err error
+				if task.protocol == svctype.ServiceGRPC {
 					err = s.ping(task.dest, task.payload)
-				} else {
+				} else if task.protocol == svctype.ServiceHTTP {
 					err = s.executeRequestCommand(task.dest, task.httpUrl, task.payload)
+				} else {
+					err = fmt.Errorf("Unknown service protocol")
 				}
 				// Send errors to error channel.
 				if err != nil {
@@ -134,6 +139,7 @@ func (s *Server) ping(destination string, payload uint64) error {
 	_, err = c.Ping(ctx, &PingMessage{})
 	if err != nil {
 		log.Infof("could not ping: %v", err)
+		prometheus.RecordRequestSent(destination, payload)
 		return err
 	}
 
