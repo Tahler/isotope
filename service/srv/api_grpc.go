@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Tahler/isotope/convert/pkg/graph/svctype"
 	"github.com/Tahler/isotope/service/srv/prometheus"
 	"github.com/fortio/fortio/log"
 )
@@ -16,7 +17,7 @@ func (s *Server) Ping(c context.Context, in *PingMessage) (*PingMessage, error) 
 	prometheus.RecordRequestReceived()
 
 	var statusCode int
-	err := s.executeTasks(s.tasks)
+	err := s.executeTasks(s.tasks, svctype.ServiceGRPC)
 	if err != nil {
 		log.Errf("%s", err)
 		statusCode = http.StatusInternalServerError

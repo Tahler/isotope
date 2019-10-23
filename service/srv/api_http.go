@@ -28,7 +28,7 @@ func (s *Server) ServiceHandler(h Handler) http.HandlerFunc {
 		prometheus.RecordRequestReceived()
 
 		var statusCode int
-		err := s.executeTasks(s.tasks)
+		err := s.executeTasks(s.tasks, svctype.ServiceHTTP)
 		if err != nil {
 			log.Errf("%s", err)
 			statusCode = http.StatusInternalServerError

@@ -15,6 +15,10 @@ import (
 )
 
 var (
+	maxIdleConnectionsPerHostFlag = flag.Int(
+		"max-idle-connections-per-host", 0,
+		"maximum number of connections to keep open per host")
+
 	configFile = flag.String(
 		"config-file", "/etc/config/service-graph.yaml",
 		"the full path with file name which contains the configuration file")

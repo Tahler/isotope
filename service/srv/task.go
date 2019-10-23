@@ -34,7 +34,11 @@ func newTask(command script.Command, protocol svctype.ServiceType, dest string, 
 	}
 }
 
-func (s *Server) executeTasks(tasks []*Task) error {
+// executeTask method executes tasks in parallel (using goroutines)
+// We force the protocol to use with the "proto" parameter, to enable testing
+// the same service deployment via GRPC and HTTP.
+// Therefore, it overides config file info.
+func (s *Server) executeTasks(tasks []*Task, proto svctype.ServiceType) error {
 	var wg sync.WaitGroup
 
 	errc := make(chan error, len(tasks))
@@ -46,6 +50,8 @@ func (s *Server) executeTasks(tasks []*Task) error {
 		switch cmd := task.tType.(type) {
 		case script.RequestCommand:
 			wg.Add(1)
+
+			task.protocol = proto
 
 			go func(task *Task, errc chan error) {
 				defer wg.Done()
