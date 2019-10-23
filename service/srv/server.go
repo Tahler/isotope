@@ -11,6 +11,9 @@ import (
 	"github.com/Tahler/isotope/convert/pkg/graph"
 	"github.com/Tahler/isotope/convert/pkg/graph/script"
 	log "github.com/fortio/fortio/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
 	grpc "google.golang.org/grpc"
 )
 
@@ -20,8 +23,14 @@ var (
 		"maximum number of connections to keep open per host")
 
 	configFile = flag.String(
-		"config-file", "/etc/config/service-graph.yaml",
+		"config-file",
+		"/etc/config/service-graph.yaml",
 		"the full path with file name which contains the configuration file")
+
+	enableHTTP2 = flag.Bool(
+		"http2",
+		false,
+		"if this option is set HTTP2 is enabled for the server")
 )
 
 type Server struct {
@@ -67,11 +76,21 @@ func NewServer(name string) (*Server, error) {
 		log.Fatalf("%s", err)
 	}
 
+	setMaxProcs()
 	mux := s.newApiHttp(defaultHandler)
 	s.httpServer.Addr = fmt.Sprintf(":%d", ServiceHTTPPort)
+
+	if *enableHTTP2 {
+		log.Infof("HTTP2 enabled\n")
+		h2s := &http2.Server{}
+		mux2 := h2c.NewHandler(mux, h2s)
+		s.httpServer.Handler = mux2
+		return s, nil
+	}
+
+	log.Infof("HTTP2 not enabled\n")
 	s.httpServer.Handler = mux
 
-	setMaxProcs()
 	return s, nil
 }
 
@@ -96,6 +115,7 @@ func (s *Server) Start() error {
 
 	// Start HTTP server on the main thread.
 	log.Infof("listening HTTP on port %v\n", s.httpServer.Addr)
+
 	err = s.httpServer.ListenAndServe()
 	if err != nil {
 		log.Fatalf("%s", err)
