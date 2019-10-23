@@ -26,16 +26,12 @@ var (
 		"config-file",
 		"/etc/config/service-graph.yaml",
 		"the full path with file name which contains the configuration file")
-
-	enableHTTP2 = flag.Bool(
-		"http2",
-		false,
-		"if this option is set HTTP2 is enabled for the server")
 )
 
 type Server struct {
 	name         string
 	httpServer   *http.Server
+	http2Server  *http.Server
 	httpConnPool map[string]*http.Client
 
 	grpcServer   *grpc.Server
@@ -52,6 +48,7 @@ func NewServer(name string) (*Server, error) {
 	s := &Server{
 		name:         name,
 		httpServer:   new(http.Server),
+		http2Server:  new(http.Server),
 		httpConnPool: make(map[string]*http.Client),
 		grpcServer:   new(grpc.Server),
 		grpcPort:     fmt.Sprintf("%d", ServiceGRPCPort),
@@ -78,18 +75,13 @@ func NewServer(name string) (*Server, error) {
 
 	setMaxProcs()
 	mux := s.newApiHttp(defaultHandler)
+	s.httpServer.Handler = mux
 	s.httpServer.Addr = fmt.Sprintf(":%d", ServiceHTTPPort)
 
-	if *enableHTTP2 {
-		log.Infof("HTTP2 enabled\n")
-		h2s := &http2.Server{}
-		mux2 := h2c.NewHandler(mux, h2s)
-		s.httpServer.Handler = mux2
-		return s, nil
-	}
-
-	log.Infof("HTTP2 not enabled\n")
-	s.httpServer.Handler = mux
+	h2s := &http2.Server{}
+	mux2 := h2c.NewHandler(mux, h2s)
+	s.http2Server.Handler = mux2
+	s.http2Server.Addr = fmt.Sprintf(":%d", ServiceHTTP2Port)
 
 	return s, nil
 }
@@ -111,6 +103,15 @@ func (s *Server) Start() error {
 			log.Fatalf("failed to serve GRPC: %v", err)
 		}
 		log.Infof("listening GRPC on port %v\n", s.grpcPort)
+	}()
+
+	go func() {
+		// Start HTTP2 server in a different goroutine
+		log.Infof("listening HTTP on port %v\n", s.http2Server.Addr)
+		err := s.http2Server.ListenAndServe()
+		if err != nil {
+			log.Fatalf("%s", err)
+		}
 	}()
 
 	// Start HTTP server on the main thread.

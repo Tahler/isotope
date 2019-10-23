@@ -7,6 +7,9 @@ const (
 	// ServicePort is the port for HTTP requests.
 	ServiceHTTPPort = 8080
 
+	// ServicePort is the port for HTTP2 requests.
+	ServiceHTTP2Port = 8082
+
 	// ServicePort is the port for GRPC requests
 	ServiceGRPCPort = 8081
 
