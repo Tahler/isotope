@@ -156,6 +156,16 @@ func (s *Server) createTasksAndConnectionPools() error {
 		return err
 	}
 
+	// Customize the Transport to have larger connection pool
+	defaultRoundTripper := http.DefaultTransport
+	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+	if !ok {
+		panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+	}
+	defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
+	defaultTransport.MaxIdleConns = 100
+	defaultTransport.MaxIdleConnsPerHost = 100
+
 	for _, ta := range service.Script {
 		var t *Task
 		switch cmd := ta.(type) {
@@ -168,7 +178,9 @@ func (s *Server) createTasksAndConnectionPools() error {
 				log.Fatalf("Could not create GRPC connection: %v", err)
 			}
 			s.grpcConnPool[cmd.ServiceName] = conn
-			s.httpConnPool[cmd.ServiceName] = &http.Client{}
+			s.httpConnPool[cmd.ServiceName] = &http.Client{
+				Transport: &defaultTransport,
+			}
 
 			// Create tasks list. Only 1 task here.
 			url := fmt.Sprintf("http://%s:%v", cmd.ServiceName, ServiceHTTPPort)
@@ -186,7 +198,9 @@ func (s *Server) createTasksAndConnectionPools() error {
 					log.Fatalf("Could not create GRPC connection: %v", err)
 				}
 				s.grpcConnPool[sc.ServiceName] = conn
-				s.httpConnPool[sc.ServiceName] = &http.Client{}
+				s.httpConnPool[sc.ServiceName] = &http.Client{
+					Transport: &defaultTransport,
+				}
 
 				// Create tasks list. +1 task.
 				url := fmt.Sprintf("http://%s:%v", sc.ServiceName, ServiceHTTPPort)
